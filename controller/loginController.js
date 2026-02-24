@@ -1,20 +1,17 @@
-const express = require('express'); 
+const express = require('express');
 const loginController = express.Router();
-require('dotenv').config()
+require('dotenv').config();
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { getUserByUsername,getUserByEmail } = require('../queries/loginQueries');
+const { getUserByUsername, getUserByEmail } = require('../queries/loginQueries');
+const { validate, loginSchema } = require('../validations/schemas');
+const { loginLimiter } = require('../validations/rateLimiter');
 
 loginController.use(express.json());
 
-loginController.post('/', async (req, res) => {
+loginController.post('/', loginLimiter, validate(loginSchema), async (req, res) => {
     const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ error: "Username and password are required" });
-    }
-
     const isEmail = username.includes('@');
 
     try {

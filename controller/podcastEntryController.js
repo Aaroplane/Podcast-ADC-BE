@@ -12,8 +12,10 @@ const {
     createEntry,
     updateEntry,
     deleteEntry
-} = require('../queries/podcastEntriesQueries')
+} = require('../queries/podcastEntriesQueries');
 const { AuthenticateToken } = require('../validations/UserTokenAuth');
+const { validate, createEntrySchema, updateEntrySchema, scriptSchema, audioSchema } = require('../validations/schemas');
+const { generationLimiter } = require('../validations/rateLimiter');
 
 // * Gemini content Creation variables
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -48,7 +50,7 @@ podcastEntryController.get('/:id',AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.post('/', AuthenticateToken, async (req, res) => {
+podcastEntryController.post('/', AuthenticateToken, validate(createEntrySchema), async (req, res) => {
     const { user_id } = req.params;
     const entryData = req.body;
     try {
@@ -59,7 +61,7 @@ podcastEntryController.post('/', AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.put('/:id', AuthenticateToken, async (req, res) => {
+podcastEntryController.put('/:id', AuthenticateToken, validate(updateEntrySchema), async (req, res) => {
     const { id, user_id } = req.params;
     const entryData = req.body;
     try {
@@ -80,13 +82,9 @@ podcastEntryController.delete('/:id', AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.post('/script',AuthenticateToken, async (req, res) => {
+podcastEntryController.post('/script', AuthenticateToken, generationLimiter, validate(scriptSchema), async (req, res) => {
     try {
-        const {podcastentry, mood} = req.body;
-        // ! Debugging console logs
-        // console.log("Line 97--Podcast Entry Data:", req.body);
-        // console.log("Line 97--Prompt:", podcastentry);
-        // console.log("Line 98--Mood:", mood);
+        const { podcastentry, mood } = req.body;
         const structuredPrompt = `
             ${podcastentry}
             The mood of the podcast is "${mood}".
@@ -121,12 +119,8 @@ podcastEntryController.post('/script',AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.post('/audio', AuthenticateToken, async (req, res) => {
+podcastEntryController.post('/audio', AuthenticateToken, generationLimiter, validate(audioSchema), async (req, res) => {
     const { googleCloudTTS } = req.body;
-
-    if (!googleCloudTTS || typeof googleCloudTTS !== 'string') {
-        return res.status(400).json({ error: "Missing or invalid text input for TTS." });
-    }
 
     try {
         const request = {

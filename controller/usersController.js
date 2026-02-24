@@ -9,6 +9,8 @@ const {
 } = require('../queries/usersQueries');
 const { AuthenticateToken } = require('../validations/UserTokenAuth');
 const jwt = require('jsonwebtoken');
+const { validate, createUserSchema, updateUserSchema } = require('../validations/schemas');
+const { signupLimiter } = require('../validations/rateLimiter');
 
 userController.use(express.json());
 userController.use(cors());
@@ -32,7 +34,7 @@ userController.get('/:id', AuthenticateToken, async (req, res) => {
     }
 });
 
-userController.post('/', async (req, res) => {
+userController.post('/', signupLimiter, validate(createUserSchema), async (req, res) => {
     try {
         const addingUser = await createUser(req.body);
 
@@ -65,7 +67,7 @@ userController.post('/', async (req, res) => {
     }
 });
 
-userController.put('/:id', AuthenticateToken, async (req, res) => {
+userController.put('/:id', AuthenticateToken, validate(updateUserSchema), async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
