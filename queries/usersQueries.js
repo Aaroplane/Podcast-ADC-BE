@@ -4,10 +4,11 @@ const saltRounds = 10
 
 const getAllUsers = async () => {
     try {
-        const allUsers = await db.any("SELECT * FROM users");
-        console.log(allUsers)
+        const allUsers = await db.any(
+            "SELECT id, first_name, last_name, username, email, phone_number, created_at FROM users"
+        );
         return allUsers;
-    }catch (error) {
+    } catch (error) {
         return `Error fetching all users: ${error}`;
     }
 }
@@ -24,7 +25,6 @@ const getUserById = async (id) => {
 };
 
 const createUser = async (userData) => {
-    console.log("Line-26 userController",userData)
     if (!userData) {
         return `Error: User data is required for creation.`;
     }
@@ -70,24 +70,28 @@ const createUser = async (userData) => {
 
 const updateUser = async (id, userData) => {
     try {
+        if (userData.password) {
+            userData.password = await bcrypt.hash(userData.password, saltRounds);
+        }
+
         const updatingUser = await db.one(
-            `UPDATE users SET 
-            first_name=$1, 
-            last_name=$2, 
-            username=$3, 
+            `UPDATE users SET
+            first_name=$1,
+            last_name=$2,
+            username=$3,
             password=$4,
-            email=$5, 
+            email=$5,
             phone_number=$6,
-            sex_at_birth=$7, 
-            gender_identity=$8, 
-            date_of_birth=$9 
+            sex_at_birth=$7,
+            gender_identity=$8,
+            date_of_birth=$9
             WHERE id=$10 RETURNING *`,
             [
-                userData.first_name, 
-                userData.last_name, 
-                userData.username, 
-                userData.password, 
-                userData.email, 
+                userData.first_name,
+                userData.last_name,
+                userData.username,
+                userData.password,
+                userData.email,
                 userData.phone_number,
                 userData.sex_at_birth,
                 userData.gender_identity,
@@ -98,7 +102,7 @@ const updateUser = async (id, userData) => {
         return updatingUser;
     } catch (error) {
         return `Error updating user with ID ${id}: ${error}`;
-    }   
+    }
 }
 
 const deleteUser = async (id) => {

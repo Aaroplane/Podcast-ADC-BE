@@ -48,10 +48,8 @@ podcastEntryController.get('/:id',AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.post('/', async (req, res) => {
+podcastEntryController.post('/', AuthenticateToken, async (req, res) => {
     const { user_id } = req.params;
-    console.log(user_id);
-    
     const entryData = req.body;
     try {
         const newEntry = await createEntry(user_id, entryData);
@@ -61,7 +59,7 @@ podcastEntryController.post('/', async (req, res) => {
     }
 });
 
-podcastEntryController.put('/:id', async (req, res) => {
+podcastEntryController.put('/:id', AuthenticateToken, async (req, res) => {
     const { id, user_id } = req.params;
     const entryData = req.body;
     try {
@@ -72,11 +70,11 @@ podcastEntryController.put('/:id', async (req, res) => {
     }
 });
 
-podcastEntryController.delete('/:id', async (req, res) => {
+podcastEntryController.delete('/:id', AuthenticateToken, async (req, res) => {
     const { id, user_id } = req.params;
     try {
         const deleted = await deleteEntry(id, user_id);
-        res.status(200).json({message:"SUccessfully deleted Podcast!",deleted});
+        res.status(200).json({ message: "Successfully deleted Podcast!", deleted });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -102,9 +100,6 @@ podcastEntryController.post('/script',AuthenticateToken, async (req, res) => {
             }
             Return only the JSON object without any additional text or markdown formatting.
         `;
-        console.log("Line 97--Before customization:", structuredPrompt);
-        
-
         const result = await model.generateContent(structuredPrompt);
         const textResponse = result.response.text();
 
@@ -119,7 +114,6 @@ podcastEntryController.post('/script',AuthenticateToken, async (req, res) => {
 
         const structuredResponse = JSON.parse(jsonResponse);
 
-        console.log("Structured Response:", structuredResponse);
         res.json(structuredResponse);
     } catch (error) {
         console.error("Error generating content:", error);
@@ -127,17 +121,14 @@ podcastEntryController.post('/script',AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.post('/audio', async (req, res) => {
-    const { googleCloudTTS } = req.body
-    
+podcastEntryController.post('/audio', AuthenticateToken, async (req, res) => {
+    const { googleCloudTTS } = req.body;
+
+    if (!googleCloudTTS || typeof googleCloudTTS !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid text input for TTS." });
+    }
+
     try {
-        console.log("BE-Line 131 TTS prompt: ",googleCloudTTS)
-
-
-        if (!googleCloudTTS || typeof googleCloudTTS !== 'string') {
-            return res.status(400).json({ error: "Missing or invalid text input for TTS." });
-        }
-
         const request = {
             input: { text: googleCloudTTS },
             voice: {
@@ -150,24 +141,17 @@ podcastEntryController.post('/audio', async (req, res) => {
             }
         };
 
-        const [response, metadata] = await ttsClient.synthesizeSpeech(request);
+        const [response] = await ttsClient.synthesizeSpeech(request);
 
-        console.log("Line 152 - Audio Conversion: ",response);
-        //   console.dir(metadata, { depth: null }); <-- can be used to log the whole structure of the nested objects. Debugging purposes.
-        console.log(metadata, {default: null});
-        console.log("Audio content length:", response.audioContent.length);
         res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Disposition': 'inline; filename="output.mp3"',
         });
         res.status(200).send(response.audioContent);
-        console.log("Audio sent successfully.");
     } catch (error) {
-        console.log("GOOGLE_APPLICATION_CREDENTIALS:", process.env.GOOGLE_APPLICATION_CREDENTIALS);
-
-        console.error("Error generating audio:", error);
+        console.error("TTS synthesis error:", error.message);
         res.status(500).json({ error: "Failed to generate audio." });
-    } 
+    }
 });
 podcastEntryController.post('/save', async (req,res)=>{
 

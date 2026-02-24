@@ -10,7 +10,8 @@
     "dbseed": "psql -U postgres -f db/seed.sql",
     "ordb": "node scripts/onrenderSeedData.js",
     "orseed": "node scripts/onrenderSeedData.js",
-    "hashpw": "node tests/hashingSeedPasswords.js"
+    "hashpw": "node tests/hashingSeedPasswords.js",
+    "seed:admin": "node scripts/seedAdmin.js"
   },
   "keywords": [],
   "author": "",
