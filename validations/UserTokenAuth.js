@@ -1,5 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const { db } = require('../db/dbConfig');
 
 const AuthenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -15,10 +16,21 @@ const AuthenticateToken = (req, res, next) => {
   });
 };
 
-const AuthenticateAdmin = (req, res, next) => {
+const AuthenticateAdmin = async (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: "Admin access required" });
   }
+
+  // Verify admin still exists in the admins table (not just trusting the JWT role claim)
+  try {
+    const admin = await db.oneOrNone("SELECT id FROM admins WHERE id = $1", [req.user.id]);
+    if (!admin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: "Authorization check failed" });
+  }
+
   next();
 };
 

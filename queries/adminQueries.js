@@ -42,7 +42,7 @@ const createAdmin = async (adminData, createdById) => {
                 throw new Error('Admin email already exists');
             }
         }
-        throw error;
+        throw new Error('Failed to create admin account');
     }
 };
 

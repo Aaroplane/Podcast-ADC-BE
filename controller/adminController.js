@@ -61,6 +61,18 @@ adminController.post('/create', AuthenticateToken, AuthenticateAdmin, async (req
         return res.status(400).json({ error: "Username, password, and email are required" });
     }
 
+    // Password strength: min 8 chars, at least one letter and one number
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+        return res.status(400).json({
+            error: "Password must be at least 8 characters with at least one letter and one number"
+        });
+    }
+
+    // Basic email format check
+    if (!email.includes('@') || !email.includes('.')) {
+        return res.status(400).json({ error: "Invalid email format" });
+    }
+
     try {
         const newAdmin = await createAdmin(
             { username, password, email },
