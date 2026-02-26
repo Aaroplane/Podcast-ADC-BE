@@ -94,6 +94,20 @@ const getScript = async (id, user_id) => {
     }
 };
 
+const updateAudioUrl = async (id, user_id, audioUrl) => {
+    try {
+        return await db.one(
+            `UPDATE podcast_entries
+             SET audio_url = $1, updated_at = NOW()
+             WHERE id = $2 AND user_id = $3
+             RETURNING *`,
+            [audioUrl, id, user_id]
+        );
+    } catch (error) {
+        throw new Error(`Error updating audio URL: ${error}`);
+    }
+};
+
 module.exports = {
     getAllEntries,
     getSpecificEntry,
@@ -101,5 +115,6 @@ module.exports = {
     updateEntry,
     deleteEntry,
     saveScript,
-    getScript
+    getScript,
+    updateAudioUrl
 };

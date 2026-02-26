@@ -8,9 +8,10 @@ const {
     deleteUser
 } = require('../queries/usersQueries');
 const { AuthenticateToken } = require('../validations/UserTokenAuth');
-const jwt = require('jsonwebtoken');
 const { validate, createUserSchema, updateUserSchema } = require('../validations/schemas');
 const { signupLimiter } = require('../validations/rateLimiter');
+const { generateAccessToken, generateRefreshToken } = require('../validations/tokenUtils');
+const { deleteAllUserRefreshTokens } = require('../queries/refreshTokenQueries');
 
 userController.use(express.json());
 userController.use(cors());
@@ -38,15 +39,13 @@ userController.post('/', signupLimiter, validate(createUserSchema), async (req, 
     try {
         const addingUser = await createUser(req.body);
 
-        const token = jwt.sign(
-            { id: addingUser.id, role: 'user' },
-            process.env.JWT_SECRET,
-            { expiresIn: "30m" }
-        );
+        const token = generateAccessToken({ id: addingUser.id, role: 'user' });
+        const refreshToken = await generateRefreshToken(addingUser.id, 'user');
 
         return res.status(201).json({
             message: "User created successfully",
             token,
+            refreshToken,
             user: {
                 id: addingUser.id,
                 username: addingUser.username,
@@ -94,6 +93,7 @@ userController.delete('/:id', AuthenticateToken, async (req, res) => {
     }
 
     try {
+        await deleteAllUserRefreshTokens(id);
         const removingUser = await deleteUser(id);
         return res.status(200).json(removingUser);
     } catch (error) {

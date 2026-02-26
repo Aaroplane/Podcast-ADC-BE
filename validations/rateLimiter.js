@@ -36,9 +36,19 @@ const generationLimiter = rateLimit({
     legacyHeaders: false
 });
 
+// Moderate limit for token refresh — prevents abuse of rotation
+const refreshLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 30,                   // 30 refresh attempts per window
+    message: { error: "Too many refresh attempts. Please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 module.exports = {
     loginLimiter,
     signupLimiter,
     apiLimiter,
-    generationLimiter
+    generationLimiter,
+    refreshLimiter
 };

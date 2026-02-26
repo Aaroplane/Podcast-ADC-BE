@@ -3,12 +3,12 @@ const adminController = express.Router();
 require('dotenv').config();
 
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { getAdminByUsername, getAdminByEmail, createAdmin } = require('../queries/adminQueries');
 const { AuthenticateToken, AuthenticateAdmin } = require('../validations/UserTokenAuth');
 const { getAllUsers } = require('../queries/usersQueries');
 const { validate, loginSchema, adminCreateSchema } = require('../validations/schemas');
 const { loginLimiter } = require('../validations/rateLimiter');
+const { generateAccessToken, generateRefreshToken } = require('../validations/tokenUtils');
 
 adminController.use(express.json());
 
@@ -30,15 +30,13 @@ adminController.post('/login', loginLimiter, validate(loginSchema), async (req, 
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        const token = jwt.sign(
-            { id: admin.id, role: 'admin' },
-            process.env.JWT_SECRET,
-            { expiresIn: '30m' }
-        );
+        const token = generateAccessToken({ id: admin.id, role: 'admin' });
+        const refreshToken = await generateRefreshToken(admin.id, 'admin');
 
         res.status(200).json({
             message: "Admin login successful",
             token,
+            refreshToken,
             admin: {
                 id: admin.id,
                 username: admin.username

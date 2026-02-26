@@ -75,13 +75,18 @@ const updateEntrySchema = z.object({
 
 const scriptSchema = z.object({
     podcastentry: z.string().min(1, "Podcast entry text is required").max(10000, "Text is too long (max 10,000 characters)"),
-    mood: z.string().min(1, "Mood is required").max(100)
+    mood: z.enum([
+        'professional', 'casual', 'humorous', 'serious', 'educational',
+        'inspirational', 'conversational', 'dramatic', 'storytelling',
+        'investigative', 'lighthearted', 'energetic', 'calm', 'suspenseful'
+    ], { message: "Invalid mood. Choose from: professional, casual, humorous, serious, educational, inspirational, conversational, dramatic, storytelling, investigative, lighthearted, energetic, calm, suspenseful" })
 });
 
 const audioSchema = z.object({
     text: z.string().min(1, "Text input is required").max(5000, "Text is too long (max 5,000 characters)").optional(),
     googleCloudTTS: z.string().min(1, "Text input is required").max(5000, "Text is too long (max 5,000 characters)").optional(),
-    voice: z.string().max(100).optional()
+    voice: z.string().max(100).optional(),
+    entry_id: z.string().uuid("Invalid entry ID format").optional()
 }).refine(data => data.text || data.googleCloudTTS, {
     message: "Either 'text' or 'googleCloudTTS' field is required"
 });
@@ -98,7 +103,25 @@ const conversationSchema = z.object({
     turns: z.array(z.object({
         speaker: z.string().min(1, "Speaker name is required").max(50),
         text: z.string().min(1, "Text is required").max(5000, "Text is too long (max 5,000 characters)")
-    })).min(1, "At least one turn is required").max(100, "Maximum 100 turns allowed")
+    })).min(1, "At least one turn is required").max(100, "Maximum 100 turns allowed"),
+    entry_id: z.string().uuid("Invalid entry ID format").optional()
+});
+
+// ============================================
+// Auth Token Schemas
+// ============================================
+
+const refreshTokenSchema = z.object({
+    refreshToken: z.string().min(1, "Refresh token is required")
+});
+
+// ============================================
+// Dashboard Schemas
+// ============================================
+
+const dashboardPaginationSchema = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10)
 });
 
 // ============================================
@@ -137,8 +160,30 @@ function validate(schema) {
     };
 }
 
+function validateQuery(schema) {
+    return (req, res, next) => {
+        const result = schema.safeParse(req.query);
+
+        if (!result.success) {
+            const errors = result.error.issues.map(issue => ({
+                field: issue.path.join('.'),
+                message: issue.message
+            }));
+
+            return res.status(400).json({
+                error: "Validation failed",
+                details: errors
+            });
+        }
+
+        req.query = result.data;
+        next();
+    };
+}
+
 module.exports = {
     validate,
+    validateQuery,
     loginSchema,
     createUserSchema,
     updateUserSchema,
@@ -148,5 +193,7 @@ module.exports = {
     audioSchema,
     saveScriptSchema,
     conversationSchema,
-    adminCreateSchema
+    adminCreateSchema,
+    refreshTokenSchema,
+    dashboardPaginationSchema
 };

@@ -3,10 +3,10 @@ const loginController = express.Router();
 require('dotenv').config();
 
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { getUserByUsername, getUserByEmail } = require('../queries/loginQueries');
 const { validate, loginSchema } = require('../validations/schemas');
 const { loginLimiter } = require('../validations/rateLimiter');
+const { generateAccessToken, generateRefreshToken } = require('../validations/tokenUtils');
 
 loginController.use(express.json());
 
@@ -27,15 +27,13 @@ loginController.post('/', loginLimiter, validate(loginSchema), async (req, res) 
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        const jwtAccessToken = jwt.sign(
-            { id: getUser.id, role: 'user' },
-            process.env.JWT_SECRET,
-            { expiresIn: '30m' }
-        );
+        const token = generateAccessToken({ id: getUser.id, role: 'user' });
+        const refreshToken = await generateRefreshToken(getUser.id, 'user');
 
         res.status(200).json({
             message: "Login successful",
-            token: jwtAccessToken,
+            token,
+            refreshToken,
             user: {
                 id: getUser.id,
                 firstName: getUser.first_name,

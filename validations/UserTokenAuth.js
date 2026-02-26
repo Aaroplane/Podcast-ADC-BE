@@ -1,6 +1,6 @@
-require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const { db } = require('../db/dbConfig');
+const { getJwtSecret } = require('../config/secrets');
 
 const AuthenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -8,7 +8,7 @@ const AuthenticateToken = (req, res, next) => {
 
   if (!token) return res.status(401).json({ error: "Authentication required" });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, getJwtSecret(), (err, user) => {
     if (err) return res.status(403).json({ error: "Invalid or expired token" });
 
     req.user = user;

@@ -36,10 +36,10 @@ async function synthesizeWithEdgeTTS(text, voice) {
     const tts = new MsEdgeTTS();
     await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
 
-    const readable = tts.toStream(text);
+    const { audioStream } = tts.toStream(text);
 
     const chunks = [];
-    for await (const chunk of readable) {
+    for await (const chunk of audioStream) {
         chunks.push(chunk);
     }
 
