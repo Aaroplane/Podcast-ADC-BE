@@ -69,10 +69,37 @@ const deleteEntry = async (id, user_id) => {
     }
 };
 
+const saveScript = async (id, user_id, scriptContent) => {
+    try {
+        return await db.one(
+            `UPDATE podcast_entries
+             SET script_content = $1, updated_at = NOW()
+             WHERE id = $2 AND user_id = $3
+             RETURNING *`,
+            [JSON.stringify(scriptContent), id, user_id]
+        );
+    } catch (error) {
+        throw new Error(`Error saving script: ${error}`);
+    }
+};
+
+const getScript = async (id, user_id) => {
+    try {
+        return await db.oneOrNone(
+            "SELECT id, script_content FROM podcast_entries WHERE id = $1 AND user_id = $2",
+            [id, user_id]
+        );
+    } catch (error) {
+        throw new Error(`Error fetching script: ${error}`);
+    }
+};
+
 module.exports = {
     getAllEntries,
     getSpecificEntry,
     createEntry,
     updateEntry,
-    deleteEntry
+    deleteEntry,
+    saveScript,
+    getScript
 };

@@ -79,7 +79,26 @@ const scriptSchema = z.object({
 });
 
 const audioSchema = z.object({
-    googleCloudTTS: z.string().min(1, "Text input is required").max(5000, "Text is too long (max 5,000 characters)")
+    text: z.string().min(1, "Text input is required").max(5000, "Text is too long (max 5,000 characters)").optional(),
+    googleCloudTTS: z.string().min(1, "Text input is required").max(5000, "Text is too long (max 5,000 characters)").optional(),
+    voice: z.string().max(100).optional()
+}).refine(data => data.text || data.googleCloudTTS, {
+    message: "Either 'text' or 'googleCloudTTS' field is required"
+});
+
+const saveScriptSchema = z.object({
+    title: z.string().min(1, "Title is required").max(255),
+    description: z.string().max(5000).optional(),
+    introduction: z.string().min(1, "Introduction is required").max(10000),
+    mainContent: z.string().min(1, "Main content is required").max(50000),
+    conclusion: z.string().min(1, "Conclusion is required").max(10000)
+});
+
+const conversationSchema = z.object({
+    turns: z.array(z.object({
+        speaker: z.string().min(1, "Speaker name is required").max(50),
+        text: z.string().min(1, "Text is required").max(5000, "Text is too long (max 5,000 characters)")
+    })).min(1, "At least one turn is required").max(100, "Maximum 100 turns allowed")
 });
 
 // ============================================
@@ -127,5 +146,7 @@ module.exports = {
     updateEntrySchema,
     scriptSchema,
     audioSchema,
+    saveScriptSchema,
+    conversationSchema,
     adminCreateSchema
 };

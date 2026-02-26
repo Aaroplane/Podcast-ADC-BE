@@ -1,6 +1,5 @@
 // * Setting Environment
 const express = require('express');
-const cors = require('cors');
 const podcastEntryController = express.Router({mergeParams: true});
 require('dotenv').config();
 const API_KEY = process.env.GEMINI_API_KEY;
@@ -11,26 +10,26 @@ const {
     getSpecificEntry,
     createEntry,
     updateEntry,
-    deleteEntry
+    deleteEntry,
+    saveScript,
+    getScript
 } = require('../queries/podcastEntriesQueries');
 const { AuthenticateToken } = require('../validations/UserTokenAuth');
-const { validate, createEntrySchema, updateEntrySchema, scriptSchema, audioSchema } = require('../validations/schemas');
+const { validate, createEntrySchema, updateEntrySchema, scriptSchema, audioSchema, saveScriptSchema, conversationSchema } = require('../validations/schemas');
 const { generationLimiter } = require('../validations/rateLimiter');
 
 // * Gemini content Creation variables
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(API_KEY)
-const textToSpeech = require('@google-cloud/text-to-speech');
-const ttsClient = new textToSpeech.TextToSpeechClient();
+const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
     systemInstruction: "You are the host of a podcast and create a formatted podcast speech with the information entered."
 });
 
-podcastEntryController.use(express.json());
-podcastEntryController.use(cors());
+// * TTS Provider
+const { synthesize, getAvailableVoices } = require('../services/ttsProvider');
 
-podcastEntryController.get('/',AuthenticateToken, async (req, res) => {
+podcastEntryController.get('/', AuthenticateToken, async (req, res) => {
     const { user_id } = req.params;
     try {
         const entries = await getAllEntries(user_id);
@@ -40,7 +39,7 @@ podcastEntryController.get('/',AuthenticateToken, async (req, res) => {
     }
 });
 
-podcastEntryController.get('/:id',AuthenticateToken, async (req, res) => {
+podcastEntryController.get('/:id', AuthenticateToken, async (req, res) => {
     const { id, user_id } = req.params;
     try {
         const entry = await getSpecificEntry(id, user_id);
@@ -119,36 +118,84 @@ podcastEntryController.post('/script', AuthenticateToken, generationLimiter, val
     }
 });
 
+// Save script to an existing entry
+podcastEntryController.put('/:id/script', AuthenticateToken, validate(saveScriptSchema), async (req, res) => {
+    const { id, user_id } = req.params;
+    try {
+        const updated = await saveScript(id, user_id, req.body);
+        res.status(200).json(updated);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Retrieve a saved script
+podcastEntryController.get('/:id/script', AuthenticateToken, async (req, res) => {
+    const { id, user_id } = req.params;
+    try {
+        const entry = await getScript(id, user_id);
+        if (!entry || !entry.script_content) {
+            return res.status(404).json({ error: "Script not found" });
+        }
+        res.status(200).json(entry.script_content);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Single-voice TTS audio generation (backwards compatible)
 podcastEntryController.post('/audio', AuthenticateToken, generationLimiter, validate(audioSchema), async (req, res) => {
-    const { googleCloudTTS } = req.body;
+    const { text, googleCloudTTS, voice } = req.body;
+    const inputText = text || googleCloudTTS;
 
     try {
-        const request = {
-            input: { text: googleCloudTTS },
-            voice: {
-                languageCode: 'en-US',
-                name: 'en-US-Wavenet-F',
-                ssmlGender: 'FEMALE'
-            },
-            audioConfig: {
-                audioEncoding: 'MP3'
-            }
-        };
-
-        const [response] = await ttsClient.synthesizeSpeech(request);
+        const audioBuffer = await synthesize(inputText, voice);
 
         res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Disposition': 'inline; filename="output.mp3"',
         });
-        res.status(200).send(response.audioContent);
+        res.status(200).send(audioBuffer);
     } catch (error) {
         console.error("TTS synthesis error:", error.message);
         res.status(500).json({ error: "Failed to generate audio." });
     }
 });
-podcastEntryController.post('/save', async (req,res)=>{
 
-})
+// Multi-voice conversation endpoint
+podcastEntryController.post('/audio/conversation', AuthenticateToken, generationLimiter, validate(conversationSchema), async (req, res) => {
+    const { turns } = req.body;
+
+    try {
+        const audioBuffers = [];
+
+        for (let i = 0; i < turns.length; i++) {
+            const { speaker, text } = turns[i];
+            const audioBuffer = await synthesize(text, speaker);
+            audioBuffers.push(audioBuffer);
+
+            // 200ms delay between turns to prevent Microsoft throttling
+            if (i < turns.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        const combinedAudio = Buffer.concat(audioBuffers);
+
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Disposition': 'inline; filename="conversation.mp3"',
+        });
+        res.status(200).send(combinedAudio);
+    } catch (error) {
+        console.error("Conversation TTS error:", error.message);
+        res.status(500).json({ error: "Failed to generate conversation audio." });
+    }
+});
+
+// Get available TTS voices
+podcastEntryController.get('/audio/voices', AuthenticateToken, async (req, res) => {
+    res.status(200).json(getAvailableVoices());
+});
 
 module.exports = podcastEntryController;

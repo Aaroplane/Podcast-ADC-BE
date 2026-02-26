@@ -17,7 +17,7 @@ const getUserById = async (id) => {
         throw new Error("ID is required for user lookup.");
     }
     try {
-        const userById = await db.one("SELECT * FROM users WHERE id=$1", [id]);
+        const userById = await db.oneOrNone("SELECT * FROM users WHERE id=$1", [id]);
         return userById;
     } catch (error) {
         throw new Error(`Error fetching user by ID ${id}: ${error.message}`);

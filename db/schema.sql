@@ -33,7 +33,11 @@ CREATE TABLE podcast_entries (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     audio_url VARCHAR(255) NOT NULL,
+    script_content JSONB DEFAULT NULL,
     user_id UUID NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+
