@@ -21,7 +21,7 @@ const signupLimiter = rateLimit({
 // General API limiter — prevents abuse of authenticated endpoints
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100,                  // 100 requests per window
+    max: process.env.NODE_ENV === 'test' ? 1000 : 100, // 100 in prod, 1000 in test
     message: { error: "Too many requests. Please slow down." },
     standardHeaders: true,
     legacyHeaders: false
@@ -30,7 +30,7 @@ const apiLimiter = rateLimit({
 // Tight limit for AI generation endpoints — these cost money / resources
 const generationLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20,                   // 20 generations per window
+    max: process.env.NODE_ENV === 'test' ? 200 : 20, // 20 in prod, 200 in test
     message: { error: "Generation limit reached. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false

@@ -79,7 +79,11 @@ const scriptSchema = z.object({
         'professional', 'casual', 'humorous', 'serious', 'educational',
         'inspirational', 'conversational', 'dramatic', 'storytelling',
         'investigative', 'lighthearted', 'energetic', 'calm', 'suspenseful'
-    ], { message: "Invalid mood. Choose from: professional, casual, humorous, serious, educational, inspirational, conversational, dramatic, storytelling, investigative, lighthearted, energetic, calm, suspenseful" })
+    ], { message: "Invalid mood. Choose from: professional, casual, humorous, serious, educational, inspirational, conversational, dramatic, storytelling, investigative, lighthearted, energetic, calm, suspenseful" }),
+    speakers: z.number().int().min(1, "Speakers must be at least 1").max(3, "Speakers must be at most 3").optional().default(1),
+    tone: z.enum([
+        'casual', 'balanced', 'debate', 'heated', 'deep-dive'
+    ], { message: "Invalid tone. Choose from: casual, balanced, debate, heated, deep-dive" }).optional()
 });
 
 const audioSchema = z.object({
@@ -91,13 +95,24 @@ const audioSchema = z.object({
     message: "Either 'text' or 'googleCloudTTS' field is required"
 });
 
-const saveScriptSchema = z.object({
+const saveScriptSoloSchema = z.object({
     title: z.string().min(1, "Title is required").max(255),
     description: z.string().max(5000).optional(),
     introduction: z.string().min(1, "Introduction is required").max(10000),
     mainContent: z.string().min(1, "Main content is required").max(50000),
     conclusion: z.string().min(1, "Conclusion is required").max(10000)
 });
+
+const saveScriptMultiSchema = z.object({
+    title: z.string().min(1, "Title is required").max(255),
+    description: z.string().max(5000).optional(),
+    turns: z.array(z.object({
+        speaker: z.string().min(1, "Speaker is required").max(50),
+        text: z.string().min(1, "Text is required").max(10000)
+    })).min(1, "At least one turn is required").max(200, "Maximum 200 turns allowed")
+});
+
+const saveScriptSchema = z.union([saveScriptSoloSchema, saveScriptMultiSchema]);
 
 const conversationSchema = z.object({
     turns: z.array(z.object({

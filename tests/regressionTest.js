@@ -643,6 +643,101 @@ async function runTests() {
     }
 
     // ------------------------------------------
+    // 8.6. MULTI-SPEAKER SCRIPT VALIDATION
+    // ------------------------------------------
+    console.log('--- 8.6. MULTI-SPEAKER SCRIPT VALIDATION ---');
+
+    // speakers = 0 — below minimum
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about space exploration',
+            mood: 'casual',
+            speakers: 0
+        }, refreshAuth);
+        test('POST /script — speakers=0 returns 400',
+            res.status === 400, 400, res.status, 'MultiSpeaker');
+    }
+
+    // speakers = 4 — above maximum
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about space exploration',
+            mood: 'casual',
+            speakers: 4
+        }, refreshAuth);
+        test('POST /script — speakers=4 returns 400',
+            res.status === 400, 400, res.status, 'MultiSpeaker');
+    }
+
+    // speakers = 1.5 — non-integer
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about space exploration',
+            mood: 'casual',
+            speakers: 1.5
+        }, refreshAuth);
+        test('POST /script — speakers=1.5 (non-integer) returns 400',
+            res.status === 400, 400, res.status, 'MultiSpeaker');
+    }
+
+    // Invalid tone
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about space exploration',
+            mood: 'casual',
+            speakers: 2,
+            tone: 'angry'
+        }, refreshAuth);
+        test('POST /script — invalid tone returns 400',
+            res.status === 400, 400, res.status, 'MultiSpeaker');
+    }
+
+    // Valid speakers=2 with tone — should NOT be 400 (validation passes)
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about the history of jazz music',
+            mood: 'educational',
+            speakers: 2,
+            tone: 'debate'
+        }, refreshAuth);
+        test('POST /script — speakers=2 + tone=debate does NOT return 400',
+            res.status !== 400, 'not 400', res.status, 'MultiSpeaker');
+    }
+
+    // Valid speakers=3 with tone — should NOT be 400
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'The future of renewable energy',
+            mood: 'conversational',
+            speakers: 3,
+            tone: 'deep-dive'
+        }, refreshAuth);
+        test('POST /script — speakers=3 + tone=deep-dive does NOT return 400',
+            res.status !== 400, 'not 400', res.status, 'MultiSpeaker');
+    }
+
+    // speakers=1 without tone — backwards compatible, should NOT be 400
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about the history of jazz music',
+            mood: 'educational',
+            speakers: 1
+        }, refreshAuth);
+        test('POST /script — speakers=1 (solo) does NOT return 400',
+            res.status !== 400, 'not 400', res.status, 'MultiSpeaker');
+    }
+
+    // No speakers field — defaults to 1, backwards compatible
+    {
+        const res = await request('POST', `/users/${userId}/podcastentries/script`, {
+            podcastentry: 'Tell me about the history of jazz music',
+            mood: 'educational'
+        }, refreshAuth);
+        test('POST /script — no speakers field (default=1) does NOT return 400',
+            res.status !== 400, 'not 400', res.status, 'MultiSpeaker');
+    }
+
+    // ------------------------------------------
     // 9. AUDIO GENERATION (POST /audio)
     // ------------------------------------------
     console.log('--- 9. AUDIO GENERATION ---');
@@ -771,6 +866,90 @@ async function runTests() {
                 res.status === 404, 404, res.status, 'ScriptSave');
         }
 
+        // ------------------------------------------
+        // 9.55. MULTI-SPEAKER SCRIPT SAVE/RETRIEVE
+        // ------------------------------------------
+        console.log('--- 9.55. MULTI-SPEAKER SCRIPT SAVE ---');
+
+        // Save multi-speaker script — valid turns format
+        {
+            const res = await request('PUT', `/users/${userId}/podcastentries/${scriptEntryId}/script`, {
+                title: 'Multi-Speaker Test',
+                description: 'A multi-speaker conversation',
+                turns: [
+                    { speaker: 'host', text: 'Welcome to the show!' },
+                    { speaker: 'cohost', text: 'Thanks for having me!' },
+                    { speaker: 'host', text: 'Let us dive into our topic today.' }
+                ]
+            }, refreshAuth);
+            test('PUT /script — save multi-speaker turns returns 200',
+                res.status === 200, 200, res.status, 'MultiSpeakerSave');
+            if (res.status === 200) {
+                test('PUT /script — multi-speaker response includes script_content',
+                    res.body.script_content !== null && res.body.script_content !== undefined,
+                    'script_content present', JSON.stringify(Object.keys(res.body)), 'MultiSpeakerSave');
+            }
+        }
+
+        // Retrieve multi-speaker script
+        {
+            const res = await request('GET', `/users/${userId}/podcastentries/${scriptEntryId}/script`, null, refreshAuth);
+            test('GET /script — retrieve multi-speaker returns 200',
+                res.status === 200, 200, res.status, 'MultiSpeakerSave');
+            if (res.status === 200) {
+                test('GET /script — multi-speaker has turns array',
+                    Array.isArray(res.body.turns) && res.body.turns.length === 3,
+                    '3 turns', JSON.stringify(res.body.turns?.length), 'MultiSpeakerSave');
+                test('GET /script — multi-speaker title is correct',
+                    res.body.title === 'Multi-Speaker Test',
+                    'Multi-Speaker Test', res.body.title, 'MultiSpeakerSave');
+            }
+        }
+
+        // Save multi-speaker — missing turns text
+        {
+            const res = await request('PUT', `/users/${userId}/podcastentries/${scriptEntryId}/script`, {
+                title: 'Bad Turns',
+                description: 'Missing text',
+                turns: [{ speaker: 'host' }]
+            }, refreshAuth);
+            test('PUT /script — multi-speaker turn missing text returns 400',
+                res.status === 400, 400, res.status, 'MultiSpeakerSave');
+        }
+
+        // Save multi-speaker — empty turns array
+        {
+            const res = await request('PUT', `/users/${userId}/podcastentries/${scriptEntryId}/script`, {
+                title: 'Empty Turns',
+                description: 'No turns',
+                turns: []
+            }, refreshAuth);
+            test('PUT /script — empty turns array returns 400',
+                res.status === 400, 400, res.status, 'MultiSpeakerSave');
+        }
+
+        // Save multi-speaker — missing title (invalid for both branches)
+        {
+            const res = await request('PUT', `/users/${userId}/podcastentries/${scriptEntryId}/script`, {
+                turns: [{ speaker: 'host', text: 'Hello' }]
+            }, refreshAuth);
+            test('PUT /script — multi-speaker missing title returns 400',
+                res.status === 400, 400, res.status, 'MultiSpeakerSave');
+        }
+
+        // Overwrite with solo format — verify format-agnostic save
+        {
+            const res = await request('PUT', `/users/${userId}/podcastentries/${scriptEntryId}/script`, {
+                title: 'Solo After Multi',
+                description: 'Back to solo',
+                introduction: 'Welcome back',
+                mainContent: 'Solo content here.',
+                conclusion: 'Goodbye!'
+            }, refreshAuth);
+            test('PUT /script — overwrite multi with solo returns 200',
+                res.status === 200, 200, res.status, 'MultiSpeakerSave');
+        }
+
         // Clean up script test entry
         await request('DELETE', `/users/${userId}/podcastentries/${scriptEntryId}`, null, refreshAuth);
     } else {
@@ -852,15 +1031,18 @@ async function runTests() {
         test('GET /audio/voices — returns 200 with voices',
             res.status === 200, 200, res.status, 'Voices');
         if (res.status === 200) {
-            test('GET /audio/voices — includes host voice',
-                res.body.host !== undefined,
-                'host present', JSON.stringify(Object.keys(res.body)), 'Voices');
-            test('GET /audio/voices — includes cohost voice',
-                res.body.cohost !== undefined,
-                'cohost present', JSON.stringify(Object.keys(res.body)), 'Voices');
-            test('GET /audio/voices — includes narrator voice',
-                res.body.narrator !== undefined,
-                'narrator present', JSON.stringify(Object.keys(res.body)), 'Voices');
+            test('GET /audio/voices — includes host role',
+                res.body.roles && res.body.roles.host !== undefined,
+                'host role present', JSON.stringify(res.body.roles), 'Voices');
+            test('GET /audio/voices — includes cohost role',
+                res.body.roles && res.body.roles.cohost !== undefined,
+                'cohost role present', JSON.stringify(res.body.roles), 'Voices');
+            test('GET /audio/voices — includes narrator role',
+                res.body.roles && res.body.roles.narrator !== undefined,
+                'narrator role present', JSON.stringify(res.body.roles), 'Voices');
+            test('GET /audio/voices — voices array has entries',
+                Array.isArray(res.body.voices) && res.body.voices.length > 0,
+                'voices array non-empty', JSON.stringify(res.body.voices?.length), 'Voices');
         }
     }
 
@@ -1131,6 +1313,96 @@ async function runTests() {
         test('POST /audio — without entry_id returns audio/mpeg',
             res.status === 200,
             200, res.status, 'Cloudinary');
+    }
+
+    // ------------------------------------------
+    // 12.5. PROMPT GUARD — scanTopicRelevance UNIT TESTS
+    // ------------------------------------------
+    console.log('--- 12.5. TOPIC RELEVANCE GUARD ---');
+
+    const { scanTopicRelevance } = require('../validations/promptGuard');
+
+    // SQL injection in turns
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'host', text: 'Let me SELECT * FROM users table to show you' }]
+        });
+        test('scanTopicRelevance — blocks SQL (SELECT FROM)',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Node internals in turns
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'host', text: 'Just run process.env.SECRET to get the key' }]
+        });
+        test('scanTopicRelevance — blocks process.env reference',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Admin panel reference
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'cohost', text: 'Go to the admin panel to see user data' }]
+        });
+        test('scanTopicRelevance — blocks admin panel reference',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Database architecture reference
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'host', text: 'The postgresql database stores all the records' }]
+        });
+        test('scanTopicRelevance — blocks database reference',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // JWT/auth reference
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'narrator', text: 'The jwt token contains the user claims' }]
+        });
+        test('scanTopicRelevance — blocks JWT reference',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Infrastructure reference
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            turns: [{ speaker: 'host', text: 'We deploy on heroku with cloudinary for assets' }]
+        });
+        test('scanTopicRelevance — blocks infrastructure reference',
+            result.safe === false, 'safe=false', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Clean topic — should pass
+    {
+        const result = scanTopicRelevance({
+            title: 'Jazz History', description: 'A podcast about jazz',
+            turns: [
+                { speaker: 'host', text: 'Jazz originated in New Orleans in the early 20th century.' },
+                { speaker: 'cohost', text: 'Absolutely! The blend of African and European musical traditions was remarkable.' }
+            ]
+        });
+        test('scanTopicRelevance — allows clean on-topic content',
+            result.safe === true, 'safe=true', JSON.stringify(result), 'TopicGuard');
+    }
+
+    // Non-turns object — should pass (not multi-speaker)
+    {
+        const result = scanTopicRelevance({
+            title: 'Test', description: 'Test',
+            introduction: 'Hello', mainContent: 'Content', conclusion: 'Bye'
+        });
+        test('scanTopicRelevance — passes for single-speaker (no turns)',
+            result.safe === true, 'safe=true', JSON.stringify(result), 'TopicGuard');
     }
 
     // ------------------------------------------
