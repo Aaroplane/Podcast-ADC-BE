@@ -27,7 +27,7 @@ app.use('/users/:user_id/podcastentries', AuthenticateToken, podcastEntryControl
 app.use('/users', userController);
 app.use('/users/:id/dashboard', AuthenticateToken, userDashboard);
 
-app.get("*", (req, res) => {
+app.use((req, res) => {
     res.status(404).json({ error: 'Path not Found' });
 });
 

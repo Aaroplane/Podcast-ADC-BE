@@ -2,3 +2,9 @@ node_modules
 .DS_Store
 .env
 docs
+*.mp3
+*.log
+.vscode/
+.idea/
+coverage/
+tmp/

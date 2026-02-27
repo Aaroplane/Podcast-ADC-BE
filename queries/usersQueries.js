@@ -9,7 +9,7 @@ const getAllUsers = async () => {
         );
         return allUsers;
     } catch (error) {
-        return `Error fetching all users: ${error}`;
+        throw new Error(`Error fetching all users: ${error.message}`);
     }
 }
 const getUserById = async (id) => {
@@ -25,13 +25,6 @@ const getUserById = async (id) => {
 };
 
 const createUser = async (userData) => {
-    if (!userData) {
-        return `Error: User data is required for creation.`;
-    }
-    if (!userData.first_name || !userData.last_name || !userData.username || !userData.password || !userData.email) {
-        return `Error: All fields are required.`;
-    }
-
     try {
         const hashedPassword = await bcrypt.hash(userData.password, saltRounds)
 
@@ -74,34 +67,33 @@ const updateUser = async (id, userData) => {
             userData.password = await bcrypt.hash(userData.password, saltRounds);
         }
 
-        const updatingUser = await db.one(
-            `UPDATE users SET
-            first_name=$1,
-            last_name=$2,
-            username=$3,
-            password=$4,
-            email=$5,
-            phone_number=$6,
-            sex_at_birth=$7,
-            gender_identity=$8,
-            date_of_birth=$9
-            WHERE id=$10 RETURNING *`,
-            [
-                userData.first_name,
-                userData.last_name,
-                userData.username,
-                userData.password,
-                userData.email,
-                userData.phone_number,
-                userData.sex_at_birth,
-                userData.gender_identity,
-                userData.date_of_birth,
-                id
-            ]
-        );
-        return updatingUser;
+        const allowedFields = [
+            'first_name', 'last_name', 'username', 'password', 'email',
+            'phone_number', 'sex_at_birth', 'gender_identity', 'date_of_birth'
+        ];
+
+        const setClauses = [];
+        const values = [];
+        let paramIndex = 1;
+
+        for (const field of allowedFields) {
+            if (userData[field] !== undefined) {
+                setClauses.push(`${field}=$${paramIndex}`);
+                values.push(userData[field]);
+                paramIndex++;
+            }
+        }
+
+        if (setClauses.length === 0) {
+            throw new Error('No valid fields provided for update');
+        }
+
+        values.push(id);
+        const query = `UPDATE users SET ${setClauses.join(', ')} WHERE id=$${paramIndex} RETURNING *`;
+        const updatedUser = await db.one(query, values);
+        return updatedUser;
     } catch (error) {
-        return `Error updating user with ID ${id}: ${error}`;
+        throw new Error(`Error updating user with ID ${id}: ${error.message}`);
     }
 }
 
@@ -113,7 +105,7 @@ const deleteUser = async (id) => {
         );
         return deletedUser;
     } catch (error) {
-        return `Error deleting user with ID ${id}: ${error}`;
+        throw new Error(`Error deleting user with ID ${id}: ${error.message}`);
     }
 }
 

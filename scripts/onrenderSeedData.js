@@ -1,3 +1,5 @@
+const { db } = require('../db/dbConfig');
+
 const seedDatabase = async () => {
     try {
         // Check if users already exist to avoid duplicates
