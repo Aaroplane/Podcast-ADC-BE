@@ -4,7 +4,7 @@ const getAllEntries = async (user_id) => {
     try {
         return await db.any("SELECT * FROM podcast_entries WHERE user_id = $1", [user_id]);
     } catch (error) {
-        throw new Error(`Error fetching entries: ${error}`);
+        throw new Error(`Error fetching entries: ${error.message}`);
     }
 };
 
@@ -12,7 +12,7 @@ const getSpecificEntry = async (id, user_id) => {
     try {
         return await db.one("SELECT * FROM podcast_entries WHERE user_id = $1 AND id = $2", [user_id, id]);
     } catch (error) {
-        throw new Error(`Error fetching entry: ${error}`);
+        throw new Error(`Error fetching entry: ${error.message}`);
     }
 };
 
@@ -33,7 +33,7 @@ const createEntry = async (user_id, podcastData) => {
             ]
         );
     } catch (error) {
-        throw new Error(`Error creating entry: ${error}`);
+        throw new Error(`Error creating entry: ${error.message}`);
     }
 };
 
@@ -57,7 +57,7 @@ const updateEntry = async (id, user_id, podcastData) => {
             ]
         );
     } catch (error) {
-        throw new Error(`Error updating entry: ${error}`);
+        throw new Error(`Error updating entry: ${error.message}`);
     }
 };
 
@@ -65,7 +65,7 @@ const deleteEntry = async (id, user_id) => {
     try {
         return await db.one("DELETE FROM podcast_entries WHERE id = $1 AND user_id = $2 RETURNING *", [id, user_id]);
     } catch (error) {
-        throw new Error(`Error deleting entry: ${error}`);
+        throw new Error(`Error deleting entry: ${error.message}`);
     }
 };
 
@@ -79,7 +79,7 @@ const saveScript = async (id, user_id, scriptContent) => {
             [JSON.stringify(scriptContent), id, user_id]
         );
     } catch (error) {
-        throw new Error(`Error saving script: ${error}`);
+        throw new Error(`Error saving script: ${error.message}`);
     }
 };
 
@@ -90,7 +90,7 @@ const getScript = async (id, user_id) => {
             [id, user_id]
         );
     } catch (error) {
-        throw new Error(`Error fetching script: ${error}`);
+        throw new Error(`Error fetching script: ${error.message}`);
     }
 };
 
@@ -104,7 +104,7 @@ const updateAudioUrl = async (id, user_id, audioUrl) => {
             [audioUrl, id, user_id]
         );
     } catch (error) {
-        throw new Error(`Error updating audio URL: ${error}`);
+        throw new Error(`Error updating audio URL: ${error.message}`);
     }
 };
 

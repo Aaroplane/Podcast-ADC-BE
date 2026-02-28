@@ -5,7 +5,7 @@ const getUserByUsername = async (username) => {
         const user = await db.oneOrNone("SELECT * FROM users WHERE username = $1", [username]);
         return user;
     } catch (error) {
-        throw new Error(`Error fetching user by username: ${error}`);
+        throw new Error(`Error fetching user by username: ${error.message}`);
     }
 };
 
@@ -14,7 +14,7 @@ const getUserByEmail = async (email) => {
         const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1", [email]);
         return user;
     } catch (error) {
-        throw new Error(`Error fetching user by email: ${error}`);
+        throw new Error(`Error fetching user by email: ${error.message}`);
     }
 };
 
