@@ -12,6 +12,7 @@ const { AuthenticateToken } = require('./validations/UserTokenAuth.js');
 const { apiLimiter } = require('./validations/rateLimiter.js');
 const { errorHandler } = require('./middleware/errorHandler.js');
 
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '1mb' }));
 app.use(cors({
     origin: [
